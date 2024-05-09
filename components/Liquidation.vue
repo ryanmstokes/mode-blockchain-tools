@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="wrap">
         <h1>Check for Liquidation Events</h1>
         <input type="text" v-model="accountHash" placeholder="Enter Account Hash" class="input">
         <select v-model="selectedCurrency" class="select">
@@ -13,16 +13,22 @@
         <button @click="checkLiquidation" class="button">Check</button>
         <p v-if="message">{{ message }}</p>
         <div v-if="loadingLiquidations">Loading</div>
-        <ul v-if="detailedTransactions.length">
-            <li v-for="transaction in filteredTransactions" :key="transaction.hash" class="listItem">
-                <label>Liquidation: {{ getMostValuableTokenSymbol(transaction.token_transfers) }}</label>
-                <div class="date">{{ formatDate(transaction.timestamp) }}</div>
-                <ul class="transactions">
-                    <li>Hash: {{ transaction.hash }}</li>
-                    <li>Implementation Name: {{ transaction.to.implementation_name }}</li>
-                </ul>
-            </li>
-        </ul>
+        <div v-if="!loadingLiquidations && detailedTransactions.length" class=" transaction-list">
+            <label class="list-title">Liquidated Transactions - <a
+                    :href="`https://explorer.mode.network/address/${accountHash}`">View wallet</a> </label>
+            <ul v-if="detailedTransactions.length" class="list">
+                <li v-for="transaction in filteredTransactions" :key="transaction.hash" class="listItem">
+                    <label>{{ getMostValuableTokenSymbol(transaction.token_transfers) }}</label>
+                    <div class="date">{{ formatDate(transaction.timestamp) }}</div>
+                    <ul class="transactions">
+                        <li>Hash: {{ transaction.hash }}</li>
+                        <li>Implementation Name: {{ transaction.to.implementation_name }}</li>
+                        <a :href="`https://explorer.mode.network/tx/${transaction.hash}`">View
+                            Transaction</a>
+                    </ul>
+                </li>
+            </ul>
+        </div>
     </div>
 </template>
 
@@ -36,6 +42,7 @@ const message = ref('');
 const detailedTransactions = ref([]);
 const loadingLiquidations = ref(false);
 const selectedCurrency = ref('all');
+const API_URL = ref('https://explorer.mode.network/api/v2/'); // Replace with actual API URL
 
 async function checkLiquidation() {
     if (!accountHash.value) {
@@ -43,11 +50,9 @@ async function checkLiquidation() {
         return;
     }
 
-    const API_URL = 'https://explorer.mode.network/api/v2/'; // Replace with actual API URL
-    const url = `${API_URL}addresses/${accountHash.value}/transactions?filter=to%20%7C%20from`;
+    const url = `${API_URL.value}addresses/${accountHash.value}/transactions?filter=to%20%7C%20from`;
 
     try {
-        loadingLiquidations.value = true;
         const response = await useFetch(url);
         const data = response.data._rawValue;
 
@@ -57,16 +62,19 @@ async function checkLiquidation() {
         );
 
         if (hasLiquidationTransactions.length) {
+            loadingLiquidations.value = true;
+
             message.value = '✓ Liquidation events found.';
             detailedTransactions.value = await Promise.all(
                 hasLiquidationTransactions.map(async (transaction) => {
-                    const transactionDetailsUrl = `${API_URL}transactions/${transaction.hash}`;
+                    const transactionDetailsUrl = `${API_URL.value}transactions/${transaction.hash}`;
                     const detailsResponse = await useFetch(transactionDetailsUrl);
                     return detailsResponse.data._rawValue;
                 })
             );
             loadingLiquidations.value = false;
         } else {
+            loadingLiquidations.value = false;
             message.value = 'No liquidation events found.';
         }
     } catch (error) {
@@ -103,11 +111,16 @@ onMounted(() => {
     detailedTransactions.value = [];
 });
 
+
 </script>
 
 
 <style scoped>
 /* Add any styling for the component if needed */
+
+.wrap {
+    padding-left: 15px;
+}
 
 .input,
 .select,
@@ -134,14 +147,39 @@ onMounted(() => {
     padding-right: 5px;
 }
 
+.transaction-list {
+    margin-top: 20px;
+}
+
+.list {
+    padding-left: 0;
+}
+
+
+.transactions {
+    padding-left: 0;
+}
+
 .transactions>li {
     margin-bottom: 3px;
+    list-style: none;
+}
+
+.list>li:first-child {
+    border-top: 1px solid #c4c4c4;
+}
+
+.list-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 15px;
 }
 
 .listItem {
     margin: 10px 0;
     padding: 10px 0;
     border-bottom: 1px solid #c4c4c4;
+    list-style: none;
 }
 
 .listItem label {

@@ -11,11 +11,14 @@
             <option value="WETH">WETH</option>
         </select>
         <button @click="checkLiquidation" class="button">Check</button>
-        <p v-if="message">{{ message }}</p>
+        <div class="message">
+            <p v-if="message">{{ message }}</p>
+        </div>
         <div v-if="loadingLiquidations">Loading</div>
         <div v-if="!loadingLiquidations && detailedTransactions.length" class=" transaction-list">
             <label class="list-title">Liquidated Transactions - <a
-                    :href="`https://explorer.mode.network/address/${accountHash}`">View wallet</a> </label>
+                    :href="`https://explorer.mode.network/address/${accountHash}`" class="wallet-button">View wallet</a>
+            </label>
             <ul v-if="detailedTransactions.length" class="list">
                 <li v-for="transaction in filteredTransactions" :key="transaction.hash" class="listItem">
                     <label>{{ getMostValuableTokenSymbol(transaction.token_transfers) }}</label>
@@ -23,7 +26,7 @@
                     <ul class="transactions">
                         <li>Hash: {{ transaction.hash }}</li>
                         <li>Implementation Name: {{ transaction.to.implementation_name }}</li>
-                        <a :href="`https://explorer.mode.network/tx/${transaction.hash}`">View
+                        <a :href="`https://explorer.mode.network/tx/${transaction.hash}`" class="view-button">View
                             Transaction</a>
                     </ul>
                 </li>
@@ -134,6 +137,30 @@ onMounted(() => {
     margin-left: 7px;
 }
 
+.button {
+    background: rgb(82, 108, 255);
+    color: white;
+    padding: 3px 15px;
+    border-radius: 5px;
+}
+
+.view-button {
+    background: rgb(198, 197, 197);
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    color: rgb(52, 52, 52);
+    text-decoration: none;
+    border-radius: 4px;
+    margin-top: 5px;
+    display: inline-block;
+    margin-bottom: 5px
+}
+
+
+.wallet-button {
+    color: #313131;
+}
+
 .input {
     height: 43px;
 }
@@ -145,6 +172,16 @@ onMounted(() => {
 
 .select {
     padding-right: 5px;
+}
+
+.message {
+    display: flex;
+}
+
+.message p {
+    background: green;
+    color: white;
+    padding: 7px;
 }
 
 .transaction-list {

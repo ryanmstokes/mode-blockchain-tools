@@ -14,7 +14,11 @@
         <div class="message">
             <p v-if="message">{{ message }}</p>
         </div>
-        <div v-if="loadingLiquidations">Loading</div>
+
+        <div v-if="loadingLiquidations" class="loading-wrap">
+            <div class="loading"></div>
+            <div class="title">Loading</div>
+        </div>
         <div v-if="!loadingLiquidations && detailedTransactions.length" class=" transaction-list">
             <label class="list-title">Liquidated Transactions - <a
                     :href="`https://explorer.mode.network/address/${accountHash}`" class="wallet-button">View wallet</a>
@@ -76,7 +80,7 @@ async function findItemsWithHash(data, hashValue) {
             return;
         }
 
-        if (data.hasOwnProperty("to") && data.to.hash === hashValue) {
+        if (data.hasOwnProperty("to") && (data.to.hash === hashValue[0] || hashValue[1])) {
             itemsWithHash.push(data);
         }
 
@@ -92,43 +96,57 @@ async function findItemsWithHash(data, hashValue) {
 
 var finalMatchingTokens = ref([]);
 async function checkTokenTransfersForHash(nextPage) {
-    console.log('nextPage', nextPage);
+
     var tokenURL = API_URL.value + `/addresses/${accountHash.value}/token-transfers`;
     if (nextPage && nextPage.index) {
-        console.log('nextPage')
         tokenURL = tokenURL + `?index=${nextPage.index}&block_number=${nextPage.block_number}`
     }
     var tokenTransfersResponse = await useFetch(tokenURL);
     var tokenTransfers = tokenTransfersResponse.data._rawValue;
-    console.log('tokenTransfers', tokenTransfers);
 
     if (tokenTransfers.items && tokenTransfers.items.length > 0) {
         itemsWithHash = [];
-        console.log("heello")
-        const matchingItems = await findItemsWithHash(tokenTransfers, '0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33');
-        console.log('matchingItems', matchingItems);
+        const matchingItems = await findItemsWithHash(tokenTransfers, ['0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33', '0x12dE7DE888526e43626C8f1a5Db2c42870D12Cd6']);
         if (matchingItems && matchingItems.length > 0) {
             finalMatchingTokens.value.push(matchingItems);
-            if (tokenTransfers.next_page_params !== null) {
-                console.log("if")
+            if (tokenTransfers.next_page_params !== null && tokenTransfers.next_page_params.index !== 0) {
+                console.log('first:', tokenTransfers.next_page_params)
                 checkTokenTransfersForHash({ index: tokenTransfers.next_page_params.index, block_number: tokenTransfers.next_page_params.block_number })
             } else {
+                if (finalMatchingTokens.value && finalMatchingTokens.value.length > 0) {
+                    message.value = '✓ Liquidation events found.';
+                } else {
+                    message.value = 'No liquidation events found.';
+                }
+
+                loadingLiquidations.value = false;
+
                 return finalMatchingTokens;
             }
         } else {
-            console.log("no matching items")
-            if (tokenTransfers.next_page_params !== null) {
-                console.log("else")
-
-                checkTokenTransfersForHash({ index: tokenTransfers.next_page_params.index, block_number: tokenTransfers.next_page_params.block_number })
+            if (tokenTransfers.next_page_params !== null && tokenTransfers.next_page_params.index !== 0) {
+                console.log('second:', tokenTransfers.next_page_params)
+                if (tokenTransfers.next_page_params.index !== 0) {
+                    checkTokenTransfersForHash({ index: tokenTransfers.next_page_params.index, block_number: tokenTransfers.next_page_params.block_number })
+                }
             } else {
-                finalMatchingTokens;
+                if (finalMatchingTokens.value && finalMatchingTokens.value.length > 0) {
+                    message.value = '✓ Liquidation events found.';
+                } else {
+                    message.value = 'No liquidation events found.';
+                }
+                loadingLiquidations.value = false;
+
+                return finalMatchingTokens;
+
             }
         }
     }
 }
 
 async function checkLiquidation(nextPageParams) {
+    message.value = ''
+    console.log("retry checkLiquidation")
     if (!accountHash.value) {
         message.value = 'Please enter an account hash.';
         return;
@@ -136,7 +154,6 @@ async function checkLiquidation(nextPageParams) {
 
     var url = `${API_URL.value}addresses/${accountHash.value}/transactions`;
     if (nextPageParams && nextPageParams.index) {
-        console.log('construct url', nextPageParams)
         url = url + `?index=${nextPageParams.index}&block_number=${nextPageParams.block_number}&items_count=${nextPageParams.items_count}`
     }
     try {
@@ -144,7 +161,6 @@ async function checkLiquidation(nextPageParams) {
 
         const response = await useFetch(url);
         const data = response.data._rawValue;
-        console.log('response.data', url, response)
 
         // Simple check for liquidation method (adapt based on response structure)
         const hasLiquidationTransactions = data.items.filter(
@@ -161,33 +177,24 @@ async function checkLiquidation(nextPageParams) {
                     return detailsResponse.data._rawValue;
                 })
             );
-            loadingLiquidations.value = false;
             if (data.next_page_params !== null) {
                 checkLiquidation(data.next_page_params);
             }
         } else {
-            if (data.next_page_params !== null) {
-                console.log("get next page", data.next_page_params)
-                checkLiquidation(data.next_page_params);
-            } else {
-                finalMatchingTokens.value = [];
-                itemsWithHash = [];
-                const matchingTokenTransfers = await checkTokenTransfersForHash();
 
-                console.log('matchingTokenTransfers', matchingTokenTransfers)
-                loadingLiquidations.value = false;
+            finalMatchingTokens.value = [];
+            itemsWithHash = [];
+            await checkTokenTransfersForHash();
 
-            }
+
+
         }
+
     } catch (error) {
         console.error(error);
         message.value = 'Error: Failed to check for liquidation events.';
     }
-    if (matchingTokenTransfers && matchingTokenTransfers.length > 0) {
-        message.value = '✓ Liquidation events found.';
-    } else {
-        message.value = 'No liquidation events found.';
-    }
+
 }
 
 function formatDate(timestamp) {
@@ -246,6 +253,57 @@ onMounted(() => {
     color: white;
     padding: 3px 15px;
     border-radius: 5px;
+}
+
+.loading-wrap {
+    display: flex;
+    align-items: center
+}
+
+.loading-wrap .title {
+    margin-left: 10px;
+    display: inline-block;
+    opacity: 0;
+    /* Initially hidden */
+    animation: fadeInfadeOut infinite alternate 3s ease-in-out;
+    /* Animation properties */
+}
+
+@keyframes fadeInfadeOut {
+    from {
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    /* Stays visible for half the duration */
+    to {
+        opacity: 0;
+    }
+}
+
+.loading {
+    margin-top: 10px;
+    margin-right: 10px;
+    width: 20px;
+    height: 20px;
+    border: 8px solid #f3f3f3;
+    border-radius: 50%;
+    border-top-color: #3498db;
+    /* Color of the spinning element */
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .view-button {

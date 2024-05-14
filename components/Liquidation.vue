@@ -79,8 +79,8 @@ async function findItemsWithHash(data, hashValue) {
             resolve(itemsWithHash);
             return;
         }
-
-        if (data.hasOwnProperty("to") && (data.to.hash === hashValue[0] || hashValue[1])) {
+        //|| hashValue[1]
+        if (data.hasOwnProperty("to") && (data.to.hash === hashValue[0])) {
             itemsWithHash.push(data);
         }
 
@@ -106,7 +106,9 @@ async function checkTokenTransfersForHash(nextPage) {
 
     if (tokenTransfers.items && tokenTransfers.items.length > 0) {
         itemsWithHash = [];
-        const matchingItems = await findItemsWithHash(tokenTransfers, ['0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33', '0x12dE7DE888526e43626C8f1a5Db2c42870D12Cd6']);
+
+        //'0x12dE7DE888526e43626C8f1a5Db2c42870D12Cd6' this account is associatd to two users lquidated transactions but seems to be a generic wallt that the other users interact with often.
+        const matchingItems = await findItemsWithHash(tokenTransfers, ['0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33']);
         if (matchingItems && matchingItems.length > 0) {
             finalMatchingTokens.value.push(matchingItems);
             if (tokenTransfers.next_page_params !== null && tokenTransfers.next_page_params.index !== 0) {

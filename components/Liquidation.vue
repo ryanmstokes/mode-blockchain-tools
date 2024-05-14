@@ -32,6 +32,26 @@
                 </li>
             </ul>
         </div>
+
+
+        <div v-if="!loadingLiquidations && finalMatchingTokens.length" class=" transaction-list">
+            <label class="list-title">Liquidated Transactions by token transfer - <a
+                    :href="`https://explorer.mode.network/address/${accountHash}`" class="wallet-button">View wallet</a>
+            </label>
+            <ul v-if="finalMatchingTokens.length" class="list">
+                {{ finalMatchingTokens[0][0].tx_hash }}
+                <li v-for="transaction in finalMatchingTokens[0]" :key="transaction.hash" class="listItem">
+                    <label>{{ transaction.token.symbol }}</label>
+                    <div>{{ transaction.length }}</div>
+                    <div class="date">{{ formatDate(transaction.timestamp) }}</div>
+                    <ul class="transactions">
+                        <li>Hash: {{ transaction.tx_hash }}</li>
+                        <a :href="`https://explorer.mode.network/tx/${transaction.tx_hash}`" class="view-button">View
+                            token transfer Transaction</a>
+                    </ul>
+                </li>
+            </ul>
+        </div>
     </div>
 </template>
 
@@ -47,25 +67,91 @@ const loadingLiquidations = ref(false);
 const selectedCurrency = ref('all');
 const API_URL = ref('https://explorer.mode.network/api/v2/'); // Replace with actual API URL
 
-async function checkLiquidation() {
+var itemsWithHash = [];
+
+async function findItemsWithHash(data, hashValue) {
+    return new Promise(async (resolve) => {
+        if (!data) {
+            resolve(itemsWithHash);
+            return;
+        }
+
+        if (data.hasOwnProperty("to") && data.to.hash === hashValue) {
+            itemsWithHash.push(data);
+        }
+
+        if (Array.isArray(data.items)) {
+            const promises = data.items.map(item => findItemsWithHash(item, hashValue));
+            await Promise.all(promises); // Wait for all recursive calls to finish
+            resolve(itemsWithHash);
+        } else {
+            resolve(itemsWithHash);
+        }
+    });
+}
+
+var finalMatchingTokens = ref([]);
+async function checkTokenTransfersForHash(nextPage) {
+    console.log('nextPage', nextPage);
+    var tokenURL = API_URL.value + `/addresses/${accountHash.value}/token-transfers`;
+    if (nextPage && nextPage.index) {
+        console.log('nextPage')
+        tokenURL = tokenURL + `?index=${nextPage.index}&block_number=${nextPage.block_number}`
+    }
+    var tokenTransfersResponse = await useFetch(tokenURL);
+    var tokenTransfers = tokenTransfersResponse.data._rawValue;
+    console.log('tokenTransfers', tokenTransfers);
+
+    if (tokenTransfers.items && tokenTransfers.items.length > 0) {
+        itemsWithHash = [];
+        console.log("heello")
+        const matchingItems = await findItemsWithHash(tokenTransfers, '0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33');
+        console.log('matchingItems', matchingItems);
+        if (matchingItems && matchingItems.length > 0) {
+            finalMatchingTokens.value.push(matchingItems);
+            if (tokenTransfers.next_page_params !== null) {
+                console.log("if")
+                checkTokenTransfersForHash({ index: tokenTransfers.next_page_params.index, block_number: tokenTransfers.next_page_params.block_number })
+            } else {
+                return finalMatchingTokens;
+            }
+        } else {
+            console.log("no matching items")
+            if (tokenTransfers.next_page_params !== null) {
+                console.log("else")
+
+                checkTokenTransfersForHash({ index: tokenTransfers.next_page_params.index, block_number: tokenTransfers.next_page_params.block_number })
+            } else {
+                finalMatchingTokens;
+            }
+        }
+    }
+}
+
+async function checkLiquidation(nextPageParams) {
     if (!accountHash.value) {
         message.value = 'Please enter an account hash.';
         return;
     }
 
-    const url = `${API_URL.value}addresses/${accountHash.value}/transactions?filter=to%20%7C%20from`;
-
+    var url = `${API_URL.value}addresses/${accountHash.value}/transactions`;
+    if (nextPageParams && nextPageParams.index) {
+        console.log('construct url', nextPageParams)
+        url = url + `?index=${nextPageParams.index}&block_number=${nextPageParams.block_number}&items_count=${nextPageParams.items_count}`
+    }
     try {
+        loadingLiquidations.value = true;
+
         const response = await useFetch(url);
         const data = response.data._rawValue;
+        console.log('response.data', url, response)
 
         // Simple check for liquidation method (adapt based on response structure)
         const hasLiquidationTransactions = data.items.filter(
-            (item) => item.method === 'safeLiquidateToTokensWithFlashLoan'
+            (item) => item.method === ('safeLiquidateToTokensWithFlashLoan')
         );
 
         if (hasLiquidationTransactions.length) {
-            loadingLiquidations.value = true;
 
             message.value = '✓ Liquidation events found.';
             detailedTransactions.value = await Promise.all(
@@ -76,13 +162,31 @@ async function checkLiquidation() {
                 })
             );
             loadingLiquidations.value = false;
+            if (data.next_page_params !== null) {
+                checkLiquidation(data.next_page_params);
+            }
         } else {
-            loadingLiquidations.value = false;
-            message.value = 'No liquidation events found.';
+            if (data.next_page_params !== null) {
+                console.log("get next page", data.next_page_params)
+                checkLiquidation(data.next_page_params);
+            } else {
+                finalMatchingTokens.value = [];
+                itemsWithHash = [];
+                const matchingTokenTransfers = await checkTokenTransfersForHash();
+
+                console.log('matchingTokenTransfers', matchingTokenTransfers)
+                loadingLiquidations.value = false;
+
+            }
         }
     } catch (error) {
         console.error(error);
         message.value = 'Error: Failed to check for liquidation events.';
+    }
+    if (matchingTokenTransfers && matchingTokenTransfers.length > 0) {
+        message.value = '✓ Liquidation events found.';
+    } else {
+        message.value = 'No liquidation events found.';
     }
 }
 

@@ -1,10 +1,19 @@
-# Nuxt 3 Minimal Starter
+# Mode Network Explorer Tools
 
-Look at the [Nuxt 3 documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+This app queries the Mode network explorer (https://explorer.mode.network/api-docs) API to check for wallets that have been liquidated by specific contracts.
+
+The app allows the user to enter a users wallet address and:
+
+1. Filters the txs of the wallet that have methods of "safeLiquidateToTokensWithFlashLoan".
+   (https://explorer.mode.network/api/v2/<hash>/transactions)
+2. Filters token transfers of a wallet that have been sent to a specific walleet.
+   (https://explorer.mode.network/api/v2/<hash>/token-transfers)
+
+Any transactions and token transfers that are identified as liqiuidations are returned.
 
 ## Setup
 
-Make sure to install the dependencies:
+Install the dependencies:
 
 ```bash
 # npm
@@ -23,6 +32,8 @@ bun install
 ## Development Server
 
 Start the development server on `http://localhost:3000`:
+
+vist `http://localhost:3000/check-liquidation`
 
 ```bash
 # npm

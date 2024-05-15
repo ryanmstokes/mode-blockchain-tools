@@ -25,7 +25,7 @@
             </label>
             <ul v-if="detailedTransactions.length" class="list">
                 <li v-for="transaction in filteredTransactions" :key="transaction.hash" class="listItem">
-                    <label>{{ getMostValuableTokenSymbol(transaction.token_transfers) }}</label>
+                    <label>{{ getInitiialTokenSymbolInTransfer(transaction.token_transfers) }}</label>
                     <div class="date">{{ formatDate(transaction.timestamp) }}</div>
                     <ul class="transactions">
                         <li>Hash: {{ transaction.hash }}</li>
@@ -36,14 +36,11 @@
                 </li>
             </ul>
         </div>
-
-
         <div v-if="!loadingLiquidations && finalMatchingTokens.length" class=" transaction-list">
             <label class="list-title">Liquidated Transactions by token transfer - <a
                     :href="`https://explorer.mode.network/address/${accountHash}`" class="wallet-button">View wallet</a>
             </label>
             <ul v-if="finalMatchingTokens.length" class="list">
-                {{ finalMatchingTokens[0][0].tx_hash }}
                 <li v-for="transaction in finalMatchingTokens[0]" :key="transaction.hash" class="listItem">
                     <label>{{ transaction.token.symbol }}</label>
                     <div>{{ transaction.length }}</div>
@@ -70,8 +67,8 @@ const detailedTransactions = ref([]);
 const loadingLiquidations = ref(false);
 const selectedCurrency = ref('all');
 const API_URL = ref('https://explorer.mode.network/api/v2/'); // Replace with actual API URL
-
-var itemsWithHash = [];
+let finalMatchingTokens = ref([]);
+let itemsWithHash = [];
 
 async function findItemsWithHash(data, hashValue) {
     return new Promise(async (resolve) => {
@@ -79,7 +76,7 @@ async function findItemsWithHash(data, hashValue) {
             resolve(itemsWithHash);
             return;
         }
-        //|| hashValue[1]
+        //|| hashValue[1] extend for more wallets
         if (data.hasOwnProperty("to") && (data.to.hash === hashValue[0])) {
             itemsWithHash.push(data);
         }
@@ -94,15 +91,14 @@ async function findItemsWithHash(data, hashValue) {
     });
 }
 
-var finalMatchingTokens = ref([]);
 async function checkTokenTransfersForHash(nextPage) {
 
-    var tokenURL = API_URL.value + `/addresses/${accountHash.value}/token-transfers`;
+    let tokenURL = API_URL.value + `/addresses/${accountHash.value}/token-transfers`;
     if (nextPage && nextPage.index) {
         tokenURL = tokenURL + `?index=${nextPage.index}&block_number=${nextPage.block_number}`
     }
-    var tokenTransfersResponse = await useFetch(tokenURL);
-    var tokenTransfers = tokenTransfersResponse.data._rawValue;
+    const tokenTransfersResponse = await useFetch(tokenURL);
+    const tokenTransfers = tokenTransfersResponse.data._rawValue;
 
     if (tokenTransfers.items && tokenTransfers.items.length > 0) {
         itemsWithHash = [];
@@ -112,7 +108,6 @@ async function checkTokenTransfersForHash(nextPage) {
         if (matchingItems && matchingItems.length > 0) {
             finalMatchingTokens.value.push(matchingItems);
             if (tokenTransfers.next_page_params !== null && tokenTransfers.next_page_params.index !== 0) {
-                console.log('first:', tokenTransfers.next_page_params)
                 checkTokenTransfersForHash({ index: tokenTransfers.next_page_params.index, block_number: tokenTransfers.next_page_params.block_number })
             } else {
                 if (finalMatchingTokens.value && finalMatchingTokens.value.length > 0) {
@@ -127,7 +122,6 @@ async function checkTokenTransfersForHash(nextPage) {
             }
         } else {
             if (tokenTransfers.next_page_params !== null && tokenTransfers.next_page_params.index !== 0) {
-                console.log('second:', tokenTransfers.next_page_params)
                 if (tokenTransfers.next_page_params.index !== 0) {
                     checkTokenTransfersForHash({ index: tokenTransfers.next_page_params.index, block_number: tokenTransfers.next_page_params.block_number })
                 }
@@ -138,9 +132,7 @@ async function checkTokenTransfersForHash(nextPage) {
                     message.value = 'No liquidation events found.';
                 }
                 loadingLiquidations.value = false;
-
                 return finalMatchingTokens;
-
             }
         }
     }
@@ -148,19 +140,17 @@ async function checkTokenTransfersForHash(nextPage) {
 
 async function checkLiquidation(nextPageParams) {
     message.value = ''
-    console.log("retry checkLiquidation")
     if (!accountHash.value) {
         message.value = 'Please enter an account hash.';
         return;
     }
 
-    var url = `${API_URL.value}addresses/${accountHash.value}/transactions`;
+    let url = `${API_URL.value}addresses/${accountHash.value}/transactions`;
     if (nextPageParams && nextPageParams.index) {
         url = url + `?index=${nextPageParams.index}&block_number=${nextPageParams.block_number}&items_count=${nextPageParams.items_count}`
     }
     try {
         loadingLiquidations.value = true;
-
         const response = await useFetch(url);
         const data = response.data._rawValue;
 
@@ -170,7 +160,6 @@ async function checkLiquidation(nextPageParams) {
         );
 
         if (hasLiquidationTransactions.length) {
-
             message.value = '✓ Liquidation events found.';
             detailedTransactions.value = await Promise.all(
                 hasLiquidationTransactions.map(async (transaction) => {
@@ -183,13 +172,9 @@ async function checkLiquidation(nextPageParams) {
                 checkLiquidation(data.next_page_params);
             }
         } else {
-
             finalMatchingTokens.value = [];
             itemsWithHash = [];
             await checkTokenTransfersForHash();
-
-
-
         }
 
     } catch (error) {
@@ -205,9 +190,7 @@ function formatDate(timestamp) {
     return date.toLocaleDateString();
 }
 
-function getMostValuableTokenSymbol(tokenTransfers) {
-    // You can modify this logic to prioritize based on your needs
-    // Here, we assume the first token transfer is the most valuable
+function getInitiialTokenSymbolInTransfer(tokenTransfers) {
     return tokenTransfers?.[0]?.token?.symbol || 'N/A';
 }
 
@@ -216,7 +199,7 @@ const filteredTransactions = computed(() => {
         return detailedTransactions.value;
     } else {
         return detailedTransactions.value.filter(
-            (transaction) => getMostValuableTokenSymbol(transaction.token_transfers) === selectedCurrency.value
+            (transaction) => getInitiialTokenSymbolInTransfer(transaction.token_transfers) === selectedCurrency.value
         );
     }
 });
@@ -232,8 +215,6 @@ onMounted(() => {
 
 
 <style scoped>
-/* Add any styling for the component if needed */
-
 .wrap {
     padding-left: 15px;
 }

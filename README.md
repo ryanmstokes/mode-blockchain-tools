@@ -6,7 +6,7 @@ The app allows the user to enter a users wallet address and:
 
 1. Filters the txs of the wallet that have methods of "safeLiquidateToTokensWithFlashLoan".
    (https://explorer.mode.network/api/v2/walletID/transactions)
-2. Filters token transfers of a wallet that have been sent to a specific walleet.
+2. Filters token transfers of a wallet that have been sent to a specific wallet(0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33).
    (https://explorer.mode.network/api/v2/walletID/token-transfers)
 
 Any transactions and token transfers that are identified as liqiuidations are returned.

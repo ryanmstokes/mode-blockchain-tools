@@ -28,7 +28,7 @@
                     <label>{{ getInitiialTokenSymbolInTransfer(transaction.token_transfers) }}</label>
                     <div class="date">{{ formatDate(transaction.timestamp) }}</div>
                     <ul class="transactions">
-                        <li>Hash: {{ transaction.hash }}</li>
+                        <li>Transaction: {{ transaction.hash }}</li>
                         <li>Implementation Name: {{ transaction.to.implementation_name }}</li>
                         <a :href="`https://explorer.mode.network/tx/${transaction.hash}`" class="view-button">View
                             Transaction</a>
@@ -46,7 +46,8 @@
                     <div>{{ transaction.length }}</div>
                     <div class="date">{{ formatDate(transaction.timestamp) }}</div>
                     <ul class="transactions">
-                        <li>Hash: {{ transaction.tx_hash }}</li>
+                        <li>To: {{ transaction.to.hash }}</li>
+                        <li>Transaction: {{ transaction.tx_hash }}</li>
                         <a :href="`https://explorer.mode.network/tx/${transaction.tx_hash}`" class="view-button">View
                             token transfer Transaction</a>
                     </ul>
@@ -77,7 +78,7 @@ async function findItemsWithHash(data, hashValue) {
             return;
         }
         //|| hashValue[1] extend for more wallets
-        if (data.hasOwnProperty("to") && (data.to.hash === hashValue[0])) {
+        if (data.hasOwnProperty("to") && (data.to.hash === hashValue[0] || data.to.hash === hashValue[1])) {
             itemsWithHash.push(data);
         }
 
@@ -103,8 +104,7 @@ async function checkTokenTransfersForHash(nextPage) {
     if (tokenTransfers.items && tokenTransfers.items.length > 0) {
         itemsWithHash = [];
 
-        //'0x12dE7DE888526e43626C8f1a5Db2c42870D12Cd6' this account is associatd to two users lquidated transactions but seems to be a generic wallt that the other users interact with often.
-        const matchingItems = await findItemsWithHash(tokenTransfers, ['0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33']);
+        const matchingItems = await findItemsWithHash(tokenTransfers, ['0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33', '0x12dE7DE888526e43626C8f1a5Db2c42870D12Cd6']);
         if (matchingItems && matchingItems.length > 0) {
             finalMatchingTokens.value.push(matchingItems);
             if (tokenTransfers.next_page_params !== null && tokenTransfers.next_page_params.index !== 0) {

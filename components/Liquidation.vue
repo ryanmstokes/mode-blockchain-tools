@@ -111,7 +111,7 @@ async function checkTokenTransfersForHash(nextPage) {
             [
                 '0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33',
                 '0x12dE7DE888526e43626C8f1a5Db2c42870D12Cd6',
-                '0xE000008459b74a91e306a47C808061DFA372000E'
+                '0x927ae5509688eA6B992ba41Ecd1d49a6e7d69109'
             ]
         );
 

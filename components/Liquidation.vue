@@ -78,7 +78,7 @@ async function findItemsWithHash(data, hashValue) {
             return;
         }
         //|| hashValue[1] extend for more wallets
-        if (data.hasOwnProperty("to") && (data.to.hash === hashValue[0] || data.to.hash === hashValue[1])) {
+        if (data.hasOwnProperty("to") && (data.to.hash === hashValue[0] || data.to.hash === hashValue[1] || data.to.hash === hashValue[2])) {
             itemsWithHash.push(data);
         }
 
@@ -104,7 +104,7 @@ async function checkTokenTransfersForHash(nextPage) {
     if (tokenTransfers.items && tokenTransfers.items.length > 0) {
         itemsWithHash = [];
 
-        const matchingItems = await findItemsWithHash(tokenTransfers, ['0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33', '0x12dE7DE888526e43626C8f1a5Db2c42870D12Cd6']);
+        const matchingItems = await findItemsWithHash(tokenTransfers, ['0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33', '0x12dE7DE888526e43626C8f1a5Db2c42870D12Cd6', '0xd2840a78921cf2f88de9d1aa9ddc32f1ff0ff3452b9d9f0bf63827314a404dd5']);
         if (matchingItems && matchingItems.length > 0) {
             finalMatchingTokens.value.push(matchingItems);
             if (tokenTransfers.next_page_params !== null && tokenTransfers.next_page_params.index !== 0) {

@@ -36,23 +36,28 @@
                 </li>
             </ul>
         </div>
+
         <div v-if="!loadingLiquidations && finalMatchingTokens.length" class=" transaction-list">
             <label class="list-title">Liquidated Transactions by token transfer - <a
                     :href="`https://explorer.mode.network/address/${accountHash}`" class="wallet-button">View wallet</a>
             </label>
-            <ul v-if="finalMatchingTokens.length" class="list">
-                <li v-for="transaction in finalMatchingTokens[0]" :key="transaction.hash" class="listItem">
-                    <label>{{ transaction.token.symbol }}</label>
-                    <div>{{ transaction.length }}</div>
-                    <div class="date">{{ formatDate(transaction.timestamp) }}</div>
-                    <ul class="transactions">
-                        <li>To: {{ transaction.to.hash }}</li>
-                        <li>Transaction: {{ transaction.tx_hash }}</li>
-                        <a :href="`https://explorer.mode.network/tx/${transaction.tx_hash}`" class="view-button">View
-                            token transfer Transaction</a>
+            <div v-if="finalMatchingTokens.length" class="list">
+                <div v-for="transactionSet in finalMatchingTokens" class="listItem">
+                    <ul>
+                        <li v-for="(transaction, index) in transactionSet" :key="transaction.hash">
+                            <label>{{ transaction.token.symbol }}</label>
+                            <div class="date">{{ formatDate(transaction.timestamp) }}</div>
+                            <ul class=" transactions">
+                                <li>To: {{ transaction.to.hash }}</li>
+                                <li>Transaction: {{ transaction.tx_hash }}</li>
+                                <a :href="`https://explorer.mode.network/tx/${transaction.tx_hash}`"
+                                    class="view-button">View
+                                    token transfer Transaction</a>
+                            </ul>
+                        </li>
                     </ul>
-                </li>
-            </ul>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -109,16 +114,16 @@ async function checkTokenTransfersForHash(nextPage) {
 
         const matchingItems = await findItemsWithHash(tokenTransfers,
             [
-                '0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33',
+                '0x927ae5509688eA6B992ba41Ecd1d49a6e7d69109',
                 '0x12dE7DE888526e43626C8f1a5Db2c42870D12Cd6',
-                '0x927ae5509688ea6b992ba41ecd1d49a6e7d69109'
+                '0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33',
             ]
         );
 
         if (matchingItems && matchingItems.length > 0) {
             finalMatchingTokens.value.push(matchingItems);
             if (tokenTransfers.next_page_params !== null && tokenTransfers.next_page_params.index !== 0) {
-                checkTokenTransfersForHash({ index: tokenTransfers.next_page_params.index, block_number: tokenTransfers.next_page_params.block_number })
+                checkTokenTransfersForHash({ index: tokenTransfers.next_page_params.index, block_number: tokenTransfers.next_page_params.block_number });
             } else {
                 if (finalMatchingTokens.value && finalMatchingTokens.value.length > 0) {
                     message.value = '✓ Liquidation events found.';
@@ -127,7 +132,6 @@ async function checkTokenTransfersForHash(nextPage) {
                 }
 
                 loadingLiquidations.value = false;
-
                 return finalMatchingTokens;
             }
         } else {

@@ -1,16 +1,31 @@
 <template>
     <div class="wrap">
-        <h1>Check for Liquidation Events</h1>
-        <input type="text" v-model="accountHash" placeholder="Enter Account Hash" class="input">
-        <select v-model="selectedCurrency" class="select">
-            <option value="all">All Coins</option>
-            <option value="ezETH">ezETH</option>
-            <option value="USDT">USDT</option>
-            <option value="STONE">STONE</option>
-            <option value="USDC">USDC</option>
-            <option value="WETH">WETH</option>
-        </select>
-        <button @click="checkLiquidation" class="button">Check</button>
+        <div class="max-w-md">
+            <h2 class="mb-8 ml-n3">Contact interactions</h2>
+
+            <v-row class="mb-3">
+                <h3>Check if Wallet A</h3>
+            </v-row>
+            <v-row class="mb-3">
+                <v-text-field type="text" v-model="accountHash" placeholder="Enter Account Address" />
+            </v-row>
+            <v-row class="mb-3">
+                <h3>Has any transactions with the following token:</h3>
+            </v-row>
+            <v-row class="mb-3">
+                <v-select v-model="tokenAddress" v-if="allTokens" :items="allTokens" label="Select Token" />
+            </v-row>
+            <v-row class="mb-3">
+                <h3>With the follwiing contract:</h3>
+            </v-row>
+            <v-row class="mb-3">
+                <v-text-field type="text" v-model="contractHash" placeholder="Enter Contract Address" />
+            </v-row>
+            <v-row class="mb-3">
+                <v-btn @click="checkLiquidation" class="mt-6">Check</v-btn>
+            </v-row>
+
+        </div>
         <div class="message">
             <p v-if="message">{{ message }}</p>
         </div>
@@ -21,7 +36,8 @@
         </div>
         <div v-if="!loadingLiquidations && detailedTransactions.length" class=" transaction-list">
             <label class="list-title">Liquidated Transactions - <a
-                    :href="`https://explorer.mode.network/address/${accountHash}`" class="wallet-button">View wallet</a>
+                    :href="`https://explorer.mode.network/address/${accountHash}`" class="wallet-button">View
+                    wallet</a>
             </label>
             <ul v-if="detailedTransactions.length" class="list">
                 <li v-for="transaction in filteredTransactions" :key="transaction.hash" class="listItem">
@@ -39,7 +55,8 @@
 
         <div v-if="!loadingLiquidations && finalMatchingTokens.length" class=" transaction-list">
             <label class="list-title">Liquidated Transactions by token transfer - <a
-                    :href="`https://explorer.mode.network/address/${accountHash}`" class="wallet-button">View wallet</a>
+                    :href="`https://explorer.mode.network/address/${accountHash}`" class="wallet-button">View
+                    wallet</a>
             </label>
             <div v-if="finalMatchingTokens.length" class="list">
                 <div v-for="transactionSet in finalMatchingTokens" class="listItem">
@@ -65,17 +82,27 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useFetch } from 'nuxt/app';
+import { useFetch, useRoute } from 'nuxt/app';
 
 const accountHash = ref('');
 const message = ref('');
 const detailedTransactions = ref([]);
 const loadingLiquidations = ref(false);
-const selectedCurrency = ref('all');
 const API_URL = ref('https://explorer.mode.network/api/v2/'); // Replace with actual API URL
 let finalMatchingTokens = ref([]);
 let itemsWithHash = [];
+const contractHash = ref('');
+const tokenAddress = ref('');
+let baseURL = '';
+const route = useRoute();
+const network = route.params.network;
 
+if (network === 'mode') {
+    baseURL = 'https://explorer.mode.network'
+}
+if (network === 'base') {
+    baseURL = 'https://base.blockscout.com'
+}
 async function findItemsWithHash(data, hashValue) {
     return new Promise(async (resolve) => {
         if (!data) {
@@ -114,10 +141,7 @@ async function checkTokenTransfersForHash(nextPage) {
 
         const matchingItems = await findItemsWithHash(tokenTransfers,
             [
-                '0x927ae5509688eA6B992ba41Ecd1d49a6e7d69109',
-                '0x12dE7DE888526e43626C8f1a5Db2c42870D12Cd6',
-                '0xc89c328609aB58E256Cd2b5aB4F4aF2EFb9fcA33',
-                '0x0012A1543c7b2b8b42c8FdfEe40A96Acf110e3F5',
+                contractHash.value
             ]
         );
 
@@ -210,11 +234,11 @@ function getInitiialTokenSymbolInTransfer(tokenTransfers) {
 }
 
 const filteredTransactions = computed(() => {
-    if (selectedCurrency.value === 'all') {
+    if (tokenAddress.value === 'all') {
         return detailedTransactions.value;
     } else {
         return detailedTransactions.value.filter(
-            (transaction) => getInitiialTokenSymbolInTransfer(transaction.token_transfers) === selectedCurrency.value
+            (transaction) => getInitiialTokenSymbolInTransfer(transaction.token_transfers) === tokenAddress.value
         );
     }
 });
@@ -225,6 +249,17 @@ onMounted(() => {
     detailedTransactions.value = [];
 });
 
+const allTokens = ref([]);
+const getAllTokens = async () => {
+    const { data, error } = await useFetch(`${baseURL}/api/v2/tokens`);
+    data._rawValue.items.map((item) => {
+        allTokens.value.push({
+            title: item.name,
+            value: item.address
+        })
+    })
+}
+getAllTokens();
 
 </script>
 
@@ -265,6 +300,11 @@ onMounted(() => {
     /* Initially hidden */
     animation: fadeInfadeOut infinite alternate 3s ease-in-out;
     /* Animation properties */
+}
+
+.max-w-md {
+    max-width: 28rem;
+    /* Adjust the value according to your needs */
 }
 
 @keyframes fadeInfadeOut {

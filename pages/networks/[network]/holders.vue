@@ -1,6 +1,7 @@
 <script setup>
 import { useFetch } from 'nuxt/app';
 import { useRoute } from 'nuxt/app';
+
 const loading = ref(false);
 
 const tokenHolders = ref([]);
@@ -25,25 +26,33 @@ function arrayToCSV(data) {
 }
 const route = useRoute();
 
-const tokenAddress = route.params.tokenAddress; // Access tokenAddress from URL param
+const network = route.params.network;
 const index = ref(0);
+const itemsCount = ref(50);
+const tokenAddress = ref(''); // Access tokenAddress from URL param
+const amountList = ref('');
+let baseURL = '';
 
+if (network === 'mode') {
+    baseURL = 'https://explorer.mode.network'
+}
+if (network === 'base') {
+    baseURL = 'https://base.blockscout.com'
+}
 
 async function getTokenHolders() {
+
     if (!tokenAddress) {
         console.error('Missing tokenAddress parameter in URL');
         return;
     }
 
     loading.value = true;
+    const getData = async (nextPage) => {
 
-    const getPagedData = async (nextPage) => {
-
-
-        const URL = `https://explorer.mode.network/api/v2/tokens/${tokenAddress}/holders`;
+        const URL = `${baseURL}/api/v2/tokens/${tokenAddress.value}/holders`;
         let finalURL = '';
         if (nextPage && nextPage.value) {
-
             finalURL = URL + `?address_hash=${nextPage.address_hash}&value=${nextPage.value}&items_count=${nextPage.items_count}`
         } else {
             finalURL = URL;
@@ -56,10 +65,10 @@ async function getTokenHolders() {
             tokenHolders.value.push({ wallet: item.address.hash, value: item.value })
         });
 
-        if (data._rawValue.next_page_params !== null) {
+        if (data._rawValue.next_page_params !== null && data._rawValue.next_page_params.items_count < itemsCount.value) {
             // if (data._rawValue.next_page_params.index !== 0) {
             index.value++;
-            getPagedData({ address_hash: data._rawValue.next_page_params.address_hash, items_count: data._rawValue.next_page_params.items_count, value: data._rawValue.next_page_params.value.toLocaleString('fullwide', { useGrouping: false }) })
+            getData({ address_hash: data._rawValue.next_page_params.address_hash, items_count: data._rawValue.next_page_params.items_count, value: data._rawValue.next_page_params.value.toLocaleString('fullwide', { useGrouping: false }) })
             // }
         } else {
             const CSVToString = arrayToCSV(tokenHolders.value);
@@ -76,17 +85,48 @@ async function getTokenHolders() {
             loading.value = false;
         }
     }
-    getPagedData();
+    getData();
+
 }
+const allTokens = ref([]);
+const getAllTokens = async () => {
+    const { data, error } = await useFetch(`${baseURL}/api/v2/tokens`);
+    data._rawValue.items.map((item) => {
+        allTokens.value.push({
+            title: item.name,
+            value: item.address
+        })
+    })
+}
+getAllTokens();
 </script>
 
 <template>
-    <button @click="getTokenHolders">Get Token Holders</button>
+    <h2 class="mb-6">Get token holders for coin</h2>
+
     <div v-if="tokenHolders">
         <div v-if="loading" class="loading-wrap">
-            <div class="loading"></div>
-            <div class="title">Loading</div>
+            <div class="loading mt-n1"></div>
+            <div class="title ">Generating CSV</div>
         </div>
+    </div>
+    <div v-if="!loading">
+        <div class="input">
+            <v-row>
+                <v-select v-model="tokenAddress" v-if="allTokens" :items="allTokens" label="Select Token" />
+            </v-row>
+
+            <v-row>
+                <label class="mb-2 ml-3">Amount of Wallets (*defaults to 50)</label>
+            </v-row>
+            <v-row>
+                <v-text-field label="Enter amount (/50)" v-model="amountList"></v-text-field>
+            </v-row>
+        </div>
+
+        <v-btn class="button ml-n2" @click="getTokenHolders">Get Token Holders CSV</v-btn>
+
+
     </div>
 </template>
 
@@ -140,5 +180,18 @@ async function getTokenHolders() {
     100% {
         transform: rotate(360deg);
     }
+}
+
+.input,
+label {
+    float: left;
+    clear: both;
+    margin-top: 5px;
+}
+
+.button {
+    float: left;
+    clear: both;
+    margin-top: 10px;
 }
 </style>

@@ -151,9 +151,9 @@ async function checkTokenTransfersForHash(nextPage) {
                 checkTokenTransfersForHash({ index: tokenTransfers.next_page_params.index, block_number: tokenTransfers.next_page_params.block_number });
             } else {
                 if (finalMatchingTokens.value && finalMatchingTokens.value.length > 0) {
-                    message.value = '✓ Liquidation events found.';
+                    message.value = '✓ Transactions interactins.';
                 } else {
-                    message.value = 'No liquidation events found.';
+                    message.value = 'No transactions found.';
                 }
 
                 loadingLiquidations.value = false;
@@ -166,9 +166,9 @@ async function checkTokenTransfersForHash(nextPage) {
                 }
             } else {
                 if (finalMatchingTokens.value && finalMatchingTokens.value.length > 0) {
-                    message.value = '✓ Liquidation events found.';
+                    message.value = '✓ Transactions found.';
                 } else {
-                    message.value = 'No liquidation events found.';
+                    message.value = 'No transactions found.';
                 }
                 loadingLiquidations.value = false;
                 return finalMatchingTokens;

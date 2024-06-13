@@ -13,7 +13,7 @@
                 <h3>Has any transactions with the following token:</h3>
             </v-row>
             <v-row class="mb-3">
-                <v-select v-model="tokenAddress" v-if="allTokens" :items="allTokens" label="Select Token" />
+                <v-autocomplete v-model="tokenAddress" v-if="allTokens" :items="allTokens" label="Select Token" />
             </v-row>
             <v-row class="mb-3">
                 <h3>With the follwiing contract:</h3>
@@ -250,14 +250,33 @@ onMounted(() => {
 });
 
 const allTokens = ref([]);
-const getAllTokens = async () => {
-    const { data, error } = await useFetch(`${baseURL}/api/v2/tokens`);
+const getAllTokens = async (nextPageParams) => {
+    let url = `${baseURL}/api/v2/tokens`;
+
+    // "fiat_value": null,
+    //     "holder_count": 6244,
+    //         "is_name_null": false,
+    //             "items_count": 150,
+    //                 "market_cap": null,
+    //                     "name": "Modeinu"
+    if (nextPageParams !== (null || undefined)) {
+        console.log('its not null')
+        url = url + `?contract_address_hash=${nextPageParams.contract_address_hash}&items_count=${nextPageParams.items_count}&holder_count=${nextPageParams.holder_count}&name=${nextPageParams.name}&fiat_value=${nextPageParams.fiat_value}&is_name_null=${nextPageParams.is_name_null}&market_cap=${nextPageParams.market_cap}`
+    }
+
+    const { data, error } = await useFetch(url, {
+        cache: true
+    });
     data._rawValue.items.map((item) => {
         allTokens.value.push({
             title: item.name,
             value: item.address
         })
     })
+    console.log('data._rawValue.next_page_params', data._rawValue.next_page_params)
+    if (data._rawValue.next_page_params !== null) {
+        getAllTokens(data._rawValue.next_page_params);
+    }
 }
 getAllTokens();
 

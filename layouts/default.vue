@@ -40,7 +40,7 @@ const navigationLinks = ref({
       items: [
         { type: 'subheader', title: 'Base' },
         {
-          title: 'Get Wallets for Coin',
+          title: 'Get Wallets for token',
           url: '/networks/base/holders',
         },
         {
@@ -50,7 +50,7 @@ const navigationLinks = ref({
         { type: 'divider' },
         { type: 'subheader', title: 'Mode' },
         {
-          title: 'Get Wallets for Coin',
+          title: 'Get Wallets for token',
           url: '/networks/mode/holders',
         },
         {

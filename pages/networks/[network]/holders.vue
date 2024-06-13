@@ -121,7 +121,7 @@ getAllTokens();
 </script>
 
 <template>
-    <h2 class="mb-6">Get token holders for coin</h2>
+    <h2 class="mb-6">Get token holders for token</h2>
 
     <div v-if="tokenHolders">
         <div v-if="loading" class="loading-wrap">
